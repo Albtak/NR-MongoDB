@@ -1,23 +1,33 @@
-import { MongoClient } from "mongodb";
-
-declare global {
-  var _mongoClientPromise: Promise<MongoClient> | undefined;
-}
+import { MongoClient, type Db } from "mongodb";
 
 const uri = process.env.MONGODB_URI;
 const options = {};
 
-let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
 
 if (!uri) {
-  throw new Error("Please add your Mongo URI to .env.local");
+  throw new Error("Please define MONGODB_URI in .env or .env.local");
 }
 
-client = new MongoClient(uri, options);
-clientPromise = client.connect();
+if (process.env.NODE_ENV === "development") {
+  const globalWithMongo = globalThis as typeof globalThis & {
+    _mongoClientPromise?: Promise<MongoClient>;
+  };
+  if (!globalWithMongo._mongoClientPromise) {
+    const client = new MongoClient(uri, options);
+    globalWithMongo._mongoClientPromise = client.connect();
+  }
+  clientPromise = globalWithMongo._mongoClientPromise;
+} else {
+  const client = new MongoClient(uri, options);
+  clientPromise = client.connect();
+}
 
-// Export a module-scoped MongoClient promise. By doing this in a
-// separate module, the client can be shared across functions.
+/** Same MongoClient connection your API routes should reuse */
 export default clientPromise;
 
+/** DB handle from that client (optional name overrides default DB in the URI). */
+export async function getDb(name?: string): Promise<Db> {
+  const client = await clientPromise;
+  return client.db(name);
+}
