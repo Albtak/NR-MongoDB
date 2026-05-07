@@ -3,3 +3,4 @@ export { Mango } from "./Mango";
 export { User } from "./Users";
 export { Post } from "./Posts";
 export { Like } from "./Likes";
+export { Product } from "./Products";
